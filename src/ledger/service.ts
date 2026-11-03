@@ -63,8 +63,9 @@ async function lockTank(c: PoolClient, tankId: number) {
     chain_held: boolean;
     held_reason: string | null;
     negative_refused_at: Date | null;
+    send_from: Date | null;
   }>(
-    `SELECT capacity_litres, total_height_m, chain_held, held_reason, negative_refused_at FROM tanks WHERE id = $1 FOR NO KEY UPDATE`,
+    `SELECT capacity_litres, total_height_m, chain_held, held_reason, negative_refused_at, send_from FROM tanks WHERE id = $1 FOR NO KEY UPDATE`,
     [tankId],
   );
   const row = rows[0];
@@ -80,7 +81,7 @@ async function lastEmitted(c: PoolClient, tankId: number) {
   return rows[0] ?? null;
 }
 
-async function loadState(c: PoolClient, tankId: number, held: boolean): Promise<{ state: TankState; seq: number }> {
+async function loadState(c: PoolClient, tankId: number, held: boolean, notBefore: Date | null): Promise<{ state: TankState; seq: number }> {
   const last = await lastEmitted(c, tankId);
   const anchorRow = (
     await c.query<{ remaining_quantity: string; after_seq: number; as_of: Date | null; accept_negative: boolean }>(
@@ -98,6 +99,7 @@ async function loadState(c: PoolClient, tankId: number, held: boolean): Promise<
       lastRemaining: anchored ? parseMilli(anchorRow.remaining_quantity) : last ? parseMilli(last.remaining_quantity) : null,
       lastEffectiveAt: asOf && (!lastAt || asOf.getTime() > lastAt.getTime()) ? asOf : lastAt,
       held,
+      notBefore,
       ...(anchored && anchorRow.accept_negative ? { acceptNegativeOnce: true } : {}),
     },
     seq: last?.seq ?? 0,
@@ -154,7 +156,7 @@ export async function processTank(pool: Pool, tankId: number, opts: ProcessOptio
     }
     if (held) return { emitted: 0, quarantined: 0, skipped: 0, held: true };
 
-    let { state, seq } = await loadState(c, tankId, false);
+    let { state, seq } = await loadState(c, tankId, false, tankRow.send_from);
     let pending = await loadSettled(c, tankId, limit, cutoff);
 
     // Settled readings older than something already emitted: take the unsent tail back and chain again in order.
@@ -181,7 +183,7 @@ export async function processTank(pool: Pool, tankId: number, opts: ProcessOptio
         ).rows[0]!;
         if (tail.first_seq !== null) {
           await unemitFrom(c, tankId, tail.first_seq);
-          ({ state, seq } = await loadState(c, tankId, false));
+          ({ state, seq } = await loadState(c, tankId, false, tankRow.send_from));
           pending = await loadSettled(c, tankId, limit, cutoff);
         }
       }

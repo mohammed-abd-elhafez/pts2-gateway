@@ -19,7 +19,8 @@
     "client:add": "tsx scripts/add-client.ts",
     "sim": "tsx scripts/sim.ts",
     "replay:tankmsr": "tsx scripts/replay-tankmsr.ts",
-    "import:tankmsr": "tsx scripts/import-tankmsr.ts"
+    "import:tankmsr": "tsx scripts/import-tankmsr.ts",
+    "stations:load": "tsx scripts/load-stations.ts"
   },
   "dependencies": {
     "fastify": "^5.12.8",

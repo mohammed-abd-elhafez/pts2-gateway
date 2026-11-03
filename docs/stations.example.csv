@@ -1,0 +1,6 @@
+station_code,station_name,moenergy_station_code,utc_offset_minutes,tank_number,moenergy_tank_code,product_id,capacity_litres,total_height_m,send_from
+HMD-01,AL HMAIDAN,ST-000027,180,1,ST-000027-1,91,42847,2.75,
+HMD-01,AL HMAIDAN,ST-000027,180,2,ST-000027-2,1,20596,2.75,
+HMD-01,AL HMAIDAN,ST-000027,180,3,ST-000027-3,1,20596,2.75,
+HMD-01,AL HMAIDAN,ST-000027,180,4,ST-000027-4,95,18614,2.75,
+HMD-01,AL HMAIDAN,ST-000027,180,5,ST-000027-5,95,18614,3.0,

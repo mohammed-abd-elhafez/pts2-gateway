@@ -70,6 +70,8 @@ export interface BatchOptions {
   now: () => Date;
   settleMs?: number;
   maxBytes?: number;
+  /** most readings in one batch (MoEnergy's own limit is unknown; a smaller batch costs less if it is refused) */
+  maxItems?: number;
   /** most unsent rows examined per build */
   candidateLimit?: number;
 }
@@ -241,6 +243,7 @@ async function buildOnce(pool: Pool, stationId: number, opts: BatchOptions): Pro
       }
       const item = toMoEnergyReading(toReading(row));
       const add = readingJsonBytes(item);
+      if (opts.maxItems !== undefined && picked.length >= opts.maxItems) break;
       if (bytes + add > maxBytes && picked.length > 0) break;
       picked.push(row);
       items.push(item);

@@ -13,6 +13,8 @@ export interface Config {
   negativeConsumedPolicy: NegativeConsumedPolicy;
   /** decimals of the litre quantities we send (the guide's examples have two) */
   quantityDecimals: 2 | 3;
+  /** most readings per batch we hand out; unset = limited by size only */
+  batchMaxItems?: number;
   dbConnectionTimeoutMs: number;
   dbStatementTimeoutMs: number;
   dbLockTimeoutMs: number;
@@ -54,6 +56,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     captureReplyBody: env.CAPTURE_REPLY_BODY ?? '{"ok":true}',
     negativeConsumedPolicy: policy,
     quantityDecimals: decimals,
+    batchMaxItems: env.BATCH_MAX_ITEMS ? int('BATCH_MAX_ITEMS', env.BATCH_MAX_ITEMS, 1, 1, 100_000) : undefined,
     dbConnectionTimeoutMs: int('DB_CONNECTION_TIMEOUT_MS', env.DB_CONNECTION_TIMEOUT_MS, 5_000, 100, 120_000),
     dbStatementTimeoutMs: int('DB_STATEMENT_TIMEOUT_MS', env.DB_STATEMENT_TIMEOUT_MS, 60_000, 1_000, 600_000),
     dbLockTimeoutMs: int('DB_LOCK_TIMEOUT_MS', env.DB_LOCK_TIMEOUT_MS, 10_000, 100, 120_000),

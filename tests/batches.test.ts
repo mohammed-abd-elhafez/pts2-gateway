@@ -156,6 +156,20 @@ describe('getOrCreateNextBatch', () => {
     }
   });
 
+  it('stops at maxItems and carries the rest into the next batch, in order', async () => {
+    const a = await seedCodedTank(pool, st, 1);
+    await emitReadings(pool, a.id, Array.from({ length: 5 }, (_, i) => ({ minute: i * 2, fuel: String(1000 - i) })));
+
+    const first = (await getOrCreateNextBatch(pool, st.id, { ...opts, maxItems: 2 }))!;
+    expect(first.itemCount).toBe(2);
+    await closeBatch(first.id);
+    const second = (await getOrCreateNextBatch(pool, st.id, { ...opts, maxItems: 2 }))!;
+    expect(second.itemCount).toBe(2);
+    const times = [...parse(first.body), ...parse(second.body)].map((r) => String(r.reading_at));
+    expect(times).toEqual([...times].sort());
+    expect(new Set(times).size).toBe(4);
+  });
+
   it('still sends a single reading that alone exceeds the cap, so the queue never stalls', async () => {
     const a = await seedCodedTank(pool, st, 1);
     await emitReadings(pool, a.id, [{ minute: 0, fuel: '1000' }]);

@@ -8,6 +8,7 @@ import { setAnchor, UnsentReadingsError } from '../ledger/service.js';
 import { runLedgerOnce } from '../ledger/worker.js';
 import { findStationByOperatorCode, type StationRef } from '../stations/lookup.js';
 import { bearerToken, findClientByKey, type ApiClient } from './clients.js';
+import { stationStatus } from './status.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -100,6 +101,13 @@ export function registerApiRoutes(app: FastifyInstance, deps: ApiDeps): void {
         req.station = station;
       });
 
+      // Why a station answers 204, which tank is held and why, what is set aside: a read-only picture, nothing is run.
+      api.get('/status', async (req, reply) => {
+        const status = await stationStatus(pool, req.station!.id);
+        if (!status) return reply.code(404).send({ error: 'not_found', field: 'station_code' });
+        return status;
+      });
+
       // The open batch, or a new one, or 204. The ledger runs first so fresh readings are included.
       api.get('/readings/batches/next', async (req, reply) => {
         const stationId = req.station!.id;
@@ -116,7 +124,7 @@ export function registerApiRoutes(app: FastifyInstance, deps: ApiDeps): void {
                 req.log.error({ station: req.station!.operatorCode, tankId, err }, 'ledger failed for a tank; the others went on'),
             },
           );
-          batch = await buildOrReturnOpen(pool, stationId, { now });
+          batch = await buildOrReturnOpen(pool, stationId, { now, maxItems: config.batchMaxItems });
         } finally {
           leave();
         }

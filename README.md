@@ -100,6 +100,7 @@ A station's controller uploads to its own link too: `/pts/<secret>` (printed by 
 | `BODY_LIMIT_BYTES` | 20 MB | Largest controller upload; every other route takes 1 MB at most |
 | `CAPTURE_REPLY_BODY`, `CAPTURE_REPLY_STATUS` | `{"ok":true}`, 200 | What the capture endpoint answers |
 | `NEGATIVE_CONSUMED_POLICY` | `allow` | `allow` or `hold` |
+| `BATCH_MAX_ITEMS` | unset | most readings in one batch (unset = limited by size only); lower it if Preproduction refuses large batches |
 | `DB_CONNECTION_TIMEOUT_MS`, `DB_STATEMENT_TIMEOUT_MS`, `DB_LOCK_TIMEOUT_MS` | 5 s, 60 s, 10 s | Every database wait is bounded; a request that waits too long gets `503 {"error":"busy"}` |
 
 ## Operating notes
@@ -122,6 +123,19 @@ How the data leaves a PTS-2 and the plan to receive it: `docs/PTS2_DATA_ACQUISIT
 
 `NEGATIVE_CONSUMED_POLICY` (refills) and `QUANTITY_DECIMALS` (2 or 3) are decided by what Preproduction answers:
 see `docs/PREPRODUCTION_PROBES.md`.
+
+## Adding stations and tanks
+
+Stations and tanks come in with the codes MoEnergy generated for them, from a CSV file (template `docs/stations.example.csv`):
+
+```bash
+npm run stations:load -- --file stations.csv --dry-run          # what it would do
+npm run stations:load -- --file stations.csv --send-from 2026-11-01T00:00:00+03:00
+```
+
+All or nothing, safe to run again, and it prints each new station's upload secret once. `--send-from` is the go-live time: readings
+stamped before it are never sent. Per-station checklist: `docs/ONBOARDING_STATION.md`. What the guide asks and where it is kept:
+`docs/CONFORMANCE.md`.
 
 ## Simulation and replay
 

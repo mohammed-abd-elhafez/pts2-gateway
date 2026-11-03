@@ -13,7 +13,7 @@ We never contact MoEnergy. The batch body we return is exactly what MoEnergy's r
 | Format | JSON, UTF-8 |
 | Authentication | `Authorization: Bearer <key>` |
 | Links | one set per station: `/v1/stations/{station_code}/...` |
-| Operations | 4: next batch, post result, release a batch, anchor a tank |
+| Operations | 5: next batch, post result, release a batch, anchor a tank, station status |
 | Production URL | `https://<our-domain>` (given at hand-over) |
 
 `{station_code}` is your own `operator_station_code` for the station (for example `RYD-01`), not the MoEnergy
@@ -274,6 +274,25 @@ and report the open batch first.
 { "tank_code": "ST-000027-1", "remaining_quantity": 505, "chain_held": false }
 ```
 
+### 6.5 Station status
+
+| | |
+| --- | --- |
+| Operation Name | Station status |
+| Description | Read-only picture of one station: what waits, what was sent, what is held. Changes nothing |
+| Method | GET |
+| Service Endpoint | `/v1/stations/{station_code}/status` |
+
+Same key and station rules as the other operations. It does not run the ledger and never creates a batch, so it is
+safe to poll. Answer fields:
+
+| Field | Meaning |
+| --- | --- |
+| `station_code`, `moenergy_station_code` | our code and the MoEnergy code (null until supplied) |
+| `last_upload_at` | when the controller last uploaded |
+| `open_batch` | `{ id, items, created_at }` or null |
+| `tanks[]` | per tank: `state` (`ok`, `held`, `waiting_for_codes`, `inactive`), `held_reason`, `go_live_at`, `pending`, `ready`, `in_open_batch`, `sent`, `last_reading_at`, `last_ready_remaining_quantity`, `last_sent_at`, `last_sent_remaining_quantity`, `set_aside` (count per rule, for example `clock_invalid`, `before_start`) |
+
 ## 7. Integration best practices
 
 - Fetch, forward, report: in that order, for every batch, one batch at a time per station.
@@ -304,6 +323,9 @@ MoEnergy's rules (`quarantined`, with the rule code kept); it is older than what
 volume, which would make every later reading fail the "water below fuel" rule (`skipped`, rule
 `remaining_not_above_water`, for example a probe glitch to 0 L). The next good reading then chains from the last
 value MoEnergy really holds.
+A reading stamped before the tank's go-live time (`tanks.send_from`, set when the station is loaded) is never sent either
+(`skipped`, rule `before_start`): a controller that starts uploading sends everything it has stored, months of readings, and only
+what is stamped from the go-live time on goes to MoEnergy.
 
 ## 9. Open points to confirm
 

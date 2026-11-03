@@ -20,6 +20,8 @@ export interface TankState {
   held: boolean;
   /** set by an anchor that accepts a refill: the next reading may be negative even under the hold policy */
   acceptNegativeOnce?: boolean;
+  /** the tank's go-live time: a reading stamped before it is never sent */
+  notBefore?: Date | null;
 }
 
 export const emptyState: TankState = { lastRemaining: null, lastEffectiveAt: null, held: false };
@@ -41,7 +43,7 @@ export type LedgerResult =
    * so MoEnergy's own "water below fuel" rule would refuse every reading that follows it. It is set aside and
    * the chain does not move, so the next good reading chains from the last value MoEnergy really holds.
    */
-  | { kind: 'skip'; rule: 'remaining_not_above_water'; detail: string; state: TankState };
+  | { kind: 'skip'; rule: 'remaining_not_above_water' | 'before_start'; detail: string; state: TankState };
 
 /**
  * Turns one measured reading into the next link of the chain, or sets it aside.
@@ -58,9 +60,19 @@ export function step(
   policy: NegativePolicy,
   now: Date,
 ): LedgerResult {
-  if (state.held) return { kind: 'hold', reason: 'tank_held', state };
-
   const { measured } = input;
+
+  // Before the go-live time a reading can never be sent, held tank or not, so it must not wait behind a hold.
+  if (state.notBefore && measured.effectiveAt.getTime() < state.notBefore.getTime()) {
+    return {
+      kind: 'skip',
+      rule: 'before_start',
+      detail: `effective ${measured.effectiveAt.toISOString()} is before the tank's go-live time ${state.notBefore.toISOString()}`,
+      state,
+    };
+  }
+
+  if (state.held) return { kind: 'hold', reason: 'tank_held', state };
 
   if (state.lastEffectiveAt && measured.effectiveAt.getTime() <= state.lastEffectiveAt.getTime()) {
     return {
