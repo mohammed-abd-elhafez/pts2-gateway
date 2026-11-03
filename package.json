@@ -1,0 +1,37 @@
+{
+  "name": "pts2-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/src/server.js",
+    "dev": "tsx watch src/server.ts",
+    "migrate": "tsx scripts/migrate.ts",
+    "station:add": "tsx scripts/add-station.ts",
+    "test": "vitest run",
+    "test:db:start": "bash scripts/pg-test.sh start",
+    "test:db:stop": "bash scripts/pg-test.sh stop",
+    "client:add": "tsx scripts/add-client.ts",
+    "sim": "tsx scripts/sim.ts",
+    "replay:tankmsr": "tsx scripts/replay-tankmsr.ts",
+    "import:tankmsr": "tsx scripts/import-tankmsr.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.12.8",
+    "pg": "^8.23.1",
+    "pino": "^10.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "fast-check": "^4.10.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

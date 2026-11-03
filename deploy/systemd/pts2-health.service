@@ -1,0 +1,8 @@
+[Unit]
+Description=pts2-gateway health check
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/pts2-gateway
+ExecStart=/opt/pts2-gateway/deploy/health-check.sh

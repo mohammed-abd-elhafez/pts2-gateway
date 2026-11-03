@@ -1,0 +1,9 @@
+[Unit]
+Description=pts2-gateway nightly database backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/pts2-gateway
+ExecStart=/opt/pts2-gateway/deploy/backup.sh

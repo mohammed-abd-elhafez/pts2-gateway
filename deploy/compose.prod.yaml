@@ -1,0 +1,71 @@
+# Production overlay. Run from the project root:
+#   docker compose -f docker-compose.yml -f deploy/compose.prod.yaml up -d --build
+# What it changes: the app is no longer published on the host (only the proxy is), the proxy brings TLS and rate
+# limits, PostgreSQL is tuned for a 16 GB machine, and the image tags are fixed.
+services:
+  db:
+    # Pin the exact minor version you tested with; check the running one with `docker compose exec db postgres --version`.
+    image: postgres:16
+    shm_size: 256mb
+    command:
+      - postgres
+      - -c
+      - shared_buffers=3GB
+      - -c
+      - effective_cache_size=10GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=512MB
+      - -c
+      - max_wal_size=4GB
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - log_min_duration_statement=2000
+      - -c
+      - log_lock_waits=on
+      - -c
+      - max_connections=60
+    mem_limit: 8g
+
+  app:
+    ports: !reset []
+    mem_limit: 2g
+
+  caddy:
+    build: ./deploy/caddy
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env (the public name of this server)}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - caddy_logs:/var/log/caddy
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  caddy_data:
+  caddy_config:
+  caddy_logs:

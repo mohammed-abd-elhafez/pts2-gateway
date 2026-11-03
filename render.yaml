@@ -1,0 +1,37 @@
+# Render Blueprint for a TEST deployment of the gateway with demo data (not for production).
+# New > Blueprint on render.com, pick the repository, Apply. Steps and limits: docs/DEPLOY_RENDER.md
+#
+# Free plans: the web service sleeps after 15 minutes without requests, and the free database expires 30 days after creation.
+databases:
+  - name: pts2-db
+    databaseName: pts2
+    user: pts2
+    plan: free
+    region: frankfurt
+
+services:
+  - type: web
+    name: pts2-gateway
+    runtime: docker
+    plan: free
+    region: frankfurt
+    healthCheckPath: /readyz
+    # migrations, then the demo data (only when DEMO_SEED is "true"), then the server
+    dockerCommand: sh -c "node dist/scripts/migrate.js && node dist/scripts/seed-demo.js && exec node dist/src/server.js"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pts2-db
+          property: connectionString
+      - key: DEMO_SEED
+        value: "true"
+      - key: DEMO_API_KEY
+        generateValue: true
+      - key: DEMO_STATIONS
+        value: "3"
+      - key: DEMO_DAYS
+        value: "7"
+      - key: NEGATIVE_CONSUMED_POLICY
+        value: allow
+      - key: LOG_LEVEL
+        value: info
