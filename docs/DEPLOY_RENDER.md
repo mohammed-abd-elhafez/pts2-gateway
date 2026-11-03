@@ -29,7 +29,7 @@ Keep the repository private: `tests/fixtures/hmaidan/` holds a few rows of the c
 ## 2. Create the services
 
 On render.com: **New > Blueprint**, connect GitHub, choose the repository, **Apply**. Render reads `render.yaml`, creates the database
-`pts2-db` and the web service `pts2-gateway`, builds the Docker image (a few minutes) and starts it. The start command applies the
+`pts2-db` and the web service `pts2-gateway`, builds the Docker image (a few minutes) and starts it. The start command (`sh render-start.sh`) applies the
 migrations, loads the demo data (only because `DEMO_SEED` is `true`) and starts the server. The first deploy loads the demo data once;
 a restart does not load it again.
 

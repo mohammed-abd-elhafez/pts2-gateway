@@ -17,7 +17,7 @@ services:
     region: frankfurt
     healthCheckPath: /readyz
     # migrations, then the demo data (only when DEMO_SEED is "true"), then the server
-    dockerCommand: sh -c "node dist/scripts/migrate.js && node dist/scripts/seed-demo.js && exec node dist/src/server.js"
+    dockerCommand: sh render-start.sh
     envVars:
       - key: DATABASE_URL
         fromDatabase:
