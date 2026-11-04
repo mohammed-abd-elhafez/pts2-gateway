@@ -1,0 +1,29 @@
+# Third file for an 8 GB machine (2 CPU). compose.prod.yaml is tuned for 16 GB; this lowers the database memory.
+#   docker compose -f docker-compose.yml -f deploy/compose.prod.yaml -f deploy/compose.small.yaml up -d --build
+services:
+  db:
+    command:
+      - postgres
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - effective_cache_size=4GB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - max_wal_size=2GB
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - log_min_duration_statement=2000
+      - -c
+      - log_lock_waits=on
+      - -c
+      - max_connections=40
+    mem_limit: 3g
+  app:
+    mem_limit: 1g
