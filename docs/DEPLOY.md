@@ -186,6 +186,5 @@ On a brand-new server: do sections 1 to 4 first (that creates the empty database
 - The whole stack has not run on a real server yet; expect to fix small things on the first run.
 - One server: if it is down, nothing is received. The controllers store records and send them later, so a short outage
   loses nothing; a long one needs a second machine (`docs/SCALING.md`).
-- The Caddy log filter hides the secret in `/pts/<secret>/...`. A mistyped address with extra slashes might not match
-  it; look at the access log (`docker compose exec caddy sh -c 'tail -3 /var/log/caddy/access.log'`) after the first real upload.
+- The Caddy log filter hides the secret wherever `/pts/<secret>` appears in the address, also with extra slashes, another case or a prefix (found on the first real server: the first version missed `//pts/...`). The query string is not filtered: an upload address must not carry the secret there. After the first real upload, count the lines of the access log that contain a real secret (`docker compose exec -T caddy cat /var/log/caddy/access.log | grep -c -F "$S"`); it must be 0.
 - Docker images are pinned to versions (node, PostgreSQL, Caddy and its module); raise them on purpose, one at a time.

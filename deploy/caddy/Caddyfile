@@ -20,8 +20,9 @@
 		format filter {
 			wrap json
 			fields {
-				# /pts/<secret>/... becomes /pts/***/...
-				request>uri regexp ^/pts/[^/?]+ /pts/***
+				# /pts/<secret>/... becomes /pts/***/... Not anchored, any case, any run of slashes: a mistyped upload
+				# address ("//pts/<secret>", "/pts//<secret>", a prefix) is not routed, but it is still logged, secret included.
+				request>uri regexp "(?i)/pts/+[^/?]+" /pts/***
 				request>headers>Authorization delete
 				request>headers>Cookie delete
 			}
