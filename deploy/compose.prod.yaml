@@ -78,7 +78,8 @@ services:
       - "${HTTP_PORT:-80}:80"
       - "${HTTPS_PORT:-443}:443"
     volumes:
-      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # the directory, not the file: git replaces a file when it updates it, and a mounted single file would keep showing the old one
+      - ./deploy/caddy:/etc/caddy:ro
       - caddy_data:/data
       - caddy_config:/config
       - caddy_logs:/var/log/caddy
