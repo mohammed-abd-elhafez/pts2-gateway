@@ -18,7 +18,7 @@ age_h=$(( ( $(date +%s) - $(stat -c %Y "$dump") ) / 3600 ))
 
 compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS $scratch WITH (FORCE)" > /dev/null
 compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE $scratch" > /dev/null
-compose exec -T db pg_restore -U postgres -d "$scratch" --no-owner --exit-on-error < "$dump"
+compose exec -T db pg_restore -U postgres -d "$scratch" --no-owner --no-privileges --exit-on-error < "$dump"
 
 q() { compose exec -T db psql -U postgres -d "$scratch" -Atc "$1"; }
 migrations=$(q "SELECT count(*) FROM schema_migrations")

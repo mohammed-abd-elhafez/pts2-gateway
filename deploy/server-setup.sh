@@ -87,7 +87,7 @@ install -d -m 700 -o deploy -g deploy /var/backups/pts2 /var/lib/pts2-ops
 chown deploy:deploy /opt/pts2-gateway/.env; chmod 600 /opt/pts2-gateway/.env
 
 # timers run as deploy
-for u in pts2-backup pts2-health pts2-restore-test; do
+for u in pts2-backup pts2-health pts2-restore-test pts2-prune; do
   for ext in service timer; do
     sed 's#^\[Service\]#[Service]\nUser=deploy#' "/opt/pts2-gateway/deploy/systemd/$u.$ext" > "/etc/systemd/system/$u.$ext"
   done

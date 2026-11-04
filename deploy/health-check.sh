@@ -36,6 +36,9 @@ age_h=$(( (now - last) / 3600 ))
 lt=$(cat "$STATE_DIR/last-restore-test" 2>/dev/null || echo 0)
 [ "$lt" -gt 0 ] && [ $(( (now - lt) / 86400 )) -lt 40 ] || add WARN "no successful restore test in the last 40 days"
 
+# the copy that lives off this server, and whether anyone would hear an alarm
+while IFS='|' read -r level msg; do [ -n "${level:-}" ] && add "$level" "$msg"; done < <(offsite_check; alerts_check)
+
 # disks
 for path in / "$BACKUP_DIR" "$(docker info -f '{{.DockerRootDir}}' 2>/dev/null || echo /var/lib/docker)"; do
   use=$(df --output=pcent "$path" 2>/dev/null | tail -1 | tr -dc '0-9')

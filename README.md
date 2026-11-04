@@ -100,6 +100,8 @@ A station's controller uploads to its own link too: `/pts/<secret>` (printed by 
 | `BODY_LIMIT_BYTES` | 20 MB | Largest controller upload; every other route takes 1 MB at most |
 | `CAPTURE_REPLY_BODY`, `CAPTURE_REPLY_STATUS` | `{"ok":true}`, 200 | What the capture endpoint answers |
 | `NEGATIVE_CONSUMED_POLICY` | `allow` | `allow` or `hold` |
+| `APP_DB_PASSWORD` | unset | production: the password of the restricted database role `pts2_app` the server runs as (set by the `migrate` step) |
+| `RAW_UPLOADS_RETENTION_DAYS` | 90 | how long raw controller uploads are kept (at least 7); read by the weekly prune job |
 | `BATCH_MAX_ITEMS` | unset | most readings in one batch (unset = limited by size only); lower it if Preproduction refuses large batches |
 | `DB_CONNECTION_TIMEOUT_MS`, `DB_STATEMENT_TIMEOUT_MS`, `DB_LOCK_TIMEOUT_MS` | 5 s, 60 s, 10 s | Every database wait is bounded; a request that waits too long gets `503 {"error":"busy"}` |
 
@@ -148,6 +150,11 @@ npm run import:tankmsr -- --station RYD-01 --file TANKMSR.CSV --since 2026-10-04
 ```
 
 What the first real station's data showed is in `docs/REAL_DATA_FINDINGS.md`; the order of work is `docs/plans/2026-11-03-roadmap-v2.md`.
+
+## Deploying to a server
+
+One Ubuntu server with Docker, Caddy for TLS, a restricted database role, scheduled backups, health checks and
+Telegram alerts: `docs/DEPLOY.md`. Not yet run on a real server.
 
 ## Trying it on Render
 

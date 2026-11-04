@@ -35,9 +35,11 @@ if [ "$live" = yes ]; then
 fi
 
 compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"$name\""
-compose exec -T db pg_restore -U postgres -d "$name" --no-owner --exit-on-error < "$dump"
+compose exec -T db pg_restore -U postgres -d "$name" --no-owner --no-privileges --exit-on-error < "$dump"
 echo "restored into database '$name'"
 if [ "$live" = yes ]; then
+  # rights are not part of what is restored: the migrate service gives the application role its rights again
+  compose run --rm migrate
   compose up -d app
   echo "application started"
 fi

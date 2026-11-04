@@ -30,6 +30,7 @@ if [ -n "$remote" ]; then
   command -v rclone > /dev/null || fail "RCLONE_REMOTE is set but rclone is not installed"
   rclone copy "$final" "$remote" --quiet
   rclone copy "$final.sha256" "$remote" --quiet
+  date -u +%s > "$STATE_DIR/last-offsite"
 fi
 
 # Keep every dump for 14 days, Sunday dumps for 60 days, first-of-month dumps for 400 days.

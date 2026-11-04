@@ -1,0 +1,10 @@
+[Unit]
+Description=pts2-gateway prune old raw uploads weekly
+
+[Timer]
+OnCalendar=Sun *-*-* 03:10:00 UTC
+RandomizedDelaySec=600
+Persistent=true
+
+[Install]
+WantedBy=timers.target

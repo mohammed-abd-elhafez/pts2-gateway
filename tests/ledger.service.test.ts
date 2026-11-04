@@ -377,9 +377,9 @@ describe('emission window', () => {
     const { EMISSION_WINDOW } = await import('../src/ledger/service.js');
     await pool.query(
       `INSERT INTO readings (tank_id, device_time, effective_at, fuel_volume_l, created_at)
-       SELECT $1, ts, ts, 40000 - i, now() - interval '1 hour'
+       SELECT $1, ts, ts, 40000 - i, $3::timestamptz - interval '1 hour'
          FROM generate_series(0, $2) i, LATERAL (SELECT timestamptz '2026-10-30 00:00:00+00' + i * interval '1 minute' AS ts) x`,
-      [tank, EMISSION_WINDOW + 499],
+      [tank, EMISSION_WINDOW + 499, now],
     );
     const first = await processTank(pool, tank, opts());
     expect(first.emitted).toBe(EMISSION_WINDOW);
