@@ -1,107 +1,97 @@
-# Internal status page: specification (not built, not part of the delivery)
+# Internal data viewer (web page): specification (not built, not part of the delivery)
 
-Status: **proposal, 2026-11-04.** Build after the pilot station (HAI-19) has uploaded real data and the parser exists.
+Status: **proposal, 2026-11-04, reduced scope.** Build after the pilot station (HAI-19) has uploaded real data and the parser exists.
 
-## 1. Decision gate: scope
+## 1. Purpose and scope
 
-The agreement with the client is: our API in the MoEnergy shape, its documentation, and support. **No dashboard.** This page is
-therefore **an internal tool for us, the developers.** It is not delivered, not documented to the client, and not part of the
-monthly support promise. If the client ever wants a page, that is a new scope and a new price. Nothing below may be offered to the
-client as a feature without that talk.
+One purpose: **read what the gateway holds, in an orderly and clear way.** For us, the developers, on a laptop or a phone. It is
+not a monitor (Telegram alerts and `deploy/health-check.sh` do that) and it controls nothing.
 
-## 2. Purpose and users
+The agreement with the client is the API, its documentation and support; **no dashboard.** This page is an internal tool, not
+delivered and not part of the monthly support. If the client ever wants a page, that is a new scope and a new price.
 
-One user group: the two or three people who run the gateway. Questions it must answer in under ten seconds:
+Not in this version: charts, export, audit log, editing of any kind, key management, sales, a gateway/server screen. Each can be
+added later; none is needed to read the data.
 
-1. Is the gateway up, and is each station uploading? (`last_upload_at` older than expected)
-2. Is any tank held, in quarantine, or waiting for codes?
-3. Is data flowing out: how many readings are ready, in an open batch, sent?
-4. Is the client's system fetching and answering batches, or is a batch stuck open?
+## 2. Screens (two, read-only)
 
-It does not replace alerts. Telegram alerts from `deploy/health-check.sh` are how problems reach us; this page is where we look
-after an alert, or during a station go-live.
-
-## 3. Screens
-
-**Stations (home).** One row per station, sorted worst first.
+**1. Stations.** One row per station, worst first (silent, then held, then the rest).
 
 | Column | Source |
 | --- | --- |
-| Station code, MoEnergy code (or "waiting for codes") | `status.station_code`, `moenergy_station_code` |
-| Last upload (relative time, red after a threshold, default 2 h) | `last_upload_at` |
-| Tanks: ok / held / waiting for codes / inactive (counts) | `tanks[].state` |
-| Pending / ready / in open batch / sent (sums) | `tanks[]` counters |
-| Open batch age (red after a threshold, default 6 h) | `open_batch.created_at` |
-| Set aside (sum, by rule on hover) | `tanks[].set_aside` |
+| Station code, MoEnergy code (or "waiting for codes") | `stations` |
+| Last upload (relative; red after `OPS_STALE_UPLOAD_MINUTES`, default 120) | `stations.last_seen_at` |
+| Tanks by state: ok / held / waiting for codes / inactive | same logic as `GET /v1/stations/{code}/status` |
+| Pending / ready / in open batch / sent (sums) | same |
+| Open batch age (red after `OPS_STALE_BATCH_HOURS`, default 6) | `batches` |
+| Set aside (sum; by rule on hover) | same |
 
-**Station detail.** Per tank: state and `held_reason`, `go_live_at`, `last_reading_at`, last sent time and remaining quantity,
-set-aside counts. Last raw uploads for the station (time, size, parse status), with the body shown only on an explicit click.
+**2. Station detail** (click a row). Three blocks:
 
-**Gateway.** Database reachable, migrations applied, last backup time, last off-site copy, pending timers (from the state files in
-`$STATE_DIR` that `deploy/health-check.sh` already reads), disk free.
+- *Tanks:* number, operator tank code, MoEnergy tank code, product, state and `held_reason`, `go_live_at`, last reading time,
+  last sent time and remaining quantity, set-aside counts.
+- *Latest readings* of the chosen tank (default 50, newest first): time (`effective_at`, shown in the station's UTC offset and
+  in UTC), fuel litres, fuel height, water litres and height, temperature, ledger status, quality flags (`clock_invalid`,
+  `volume_missing`), delivery mark. A filter for "only flagged" and a date range.
+- *Latest batches* of the station (default 20): id, status (open / accepted / rejected), item count, size, created and closed times,
+  MoEnergy result code and item index, and what we did next.
 
-No charts of readings, no export, no editing. Read-only everywhere.
+Units are written next to the numbers (L, mm, C). Heights from the database are millimetres; the API sends metres, so the page
+shows both once, labelled, to avoid confusion when comparing with a batch body.
 
-## 4. What the API gives today, and the gaps
+## 3. What the API gives today, and the gaps
 
 | Need | Today | Gap |
 | --- | --- | --- |
-| Per-station picture | `GET /v1/stations/{code}/status` | none; documented in `docs/API.md` 6.5 |
-| Liveness | `GET /healthz` returns `{status:"ok"}` only | no dependency checks (database, backup age) |
-| **List of stations** | none | the page cannot discover stations; needs a read-only list |
-| **Read-only credential** | keys are "one station" or "all stations"; both can also `GET .../batches/next` (opens a batch, runs the ledger) and post results | a leaked key used for this page could change data; needs a key scope that is **status only** |
-| Raw uploads list | rows in `raw_uploads`, no endpoint | needs a read-only query |
+| Per-station picture | `GET /v1/stations/{code}/status` | none |
+| **List of stations** | none | needs a read-only list |
+| **Read-only credential** | keys are "one station" or "all stations"; both can also call `.../batches/next` (opens a batch, runs the ledger) and post results | a leaked key used here could change data; needs a credential that opens **only** `/ops/*` |
+| Readings and batches lists | tables exist, no endpoint | read-only queries |
 
-These three gaps are the real work. The page itself is small. Do not "solve" them by giving the page the client's all-stations key.
+The page does not call our HTTP API. It runs the same database functions in the same process, so the gaps are one query module and
+one credential type. **Never give the page the client's all-stations key.**
 
-## 5. Design
+## 4. Design
 
-Server-rendered HTML routes inside the existing app under `/ops/*`, so there is no second service, no JavaScript build, and **no
-API key in the browser.** The routes call the same database functions the status endpoint uses; they do not call our own HTTP API.
+Server-rendered HTML under `/ops/*` in the existing app: no second service, no JavaScript build, **no key in the browser.**
 
-- **Auth.** A separate credential type `ops` (hashed like API keys, created with a script, shown once), sent as HTTP Basic by the
-  browser or as a bearer token. It opens only `/ops/*`, and it is refused by `/v1/*`. A wrong or missing credential answers `401`
-  before any query. Rate-limited by Caddy as the other routes are.
-- **Transport and exposure.** Same domain, HTTPS only. Caddy adds an IP allow-list for `/ops/*` if our addresses are stable;
-  otherwise the credential alone, with a long random value.
-- **No secrets on the page.** Never show upload secrets, key hashes, the `.env`, or full raw bodies by default. Station paths in
-  stored URLs are already redacted.
-- **No writes.** Every handler is `GET`. Fixing a held tank stays a command-line or API action (`docs/API.md` 6.4).
-- **Caching.** None for the first version; queries are cheap at 38 to 182 stations. Auto-refresh every 60 s by `<meta refresh>`.
-- **Logging.** The access log hides `/ops` credentials as it hides `/pts/<secret>`.
-- **Style.** Plain table, system fonts, readable in a phone browser; red/amber/green carry text as well as colour.
+- **Auth.** New credential type `ops`: random, stored hashed like API keys, created by a script (`npm run ops:add`), shown once. Sent as
+  HTTP Basic (the browser remembers it) or as a bearer token. It opens only `/ops/*` and is refused by `/v1/*`; client keys are
+  refused by `/ops/*`. Missing or wrong: `401` before any query. Revocable. Caddy rate-limits `/ops/*` like the other routes.
+- **Exposure.** Same domain, HTTPS only. If our addresses are stable, Caddy also allow-lists them for `/ops/*`.
+- **Read only.** Every handler is `GET`; the database role needs nothing new. Fixing a held tank stays a command or an API action
+  (`docs/API.md` 6.4).
+- **No secrets shown.** Never an upload secret, key, hash or the `.env`. Raw upload bodies are not part of this version.
+- **Logging.** Caddy's access log hides the `/ops` credential as it hides `/pts/<secret>`.
+- **Looks.** A plain table, system fonts, readable on a phone; state is shown in words as well as colour. Refresh every 60 s with
+  `<meta refresh>` on the stations screen only (not on the readings table while someone is reading it).
+- **Cost.** None cached; queries use the existing indexes (readings by tank and `effective_at`, batches by station).
 
-Alternatives considered:
+Alternatives considered: a single-page app with a key in the browser (key exposed, needs the list endpoint anyway, a build to maintain);
+Grafana or Uptime Kuma (good for server metrics, cannot show per-tank ledger state without a SQL data source, one more service to patch);
+a terminal command (`show.js`) is a valid cheaper first step but does not give phone access.
 
-| Option | Why not (now) |
-| --- | --- |
-| Single-page app calling `/v1/*` with a key in the browser | key exposed in JS; needs the list endpoint anyway; a build pipeline to maintain |
-| Grafana or Uptime Kuma next to it | good for server metrics, but cannot show per-tank ledger state without a SQL data source; one more service to patch |
-| Only Telegram alerts and `psql` | cheapest; may be enough. This is the baseline the page must beat |
+## 5. Phases
 
-## 6. Phases
+1. `ops` credential type and `ops:add` script, the route guard, the station list query. Tests first.
+2. Stations screen.
+3. Station detail: tanks, readings, batches.
 
-1. **Prerequisite (needed anyway):** `ops` credential type and station list query, with tests (an `ops` credential is refused by
-   `/v1/*`; a client key is refused by `/ops/*`; no write verbs exist).
-2. **Stations screen** with thresholds from the environment (`OPS_STALE_UPLOAD_MINUTES`, `OPS_STALE_BATCH_HOURS`).
-3. **Station detail** with the raw-uploads list.
-4. **Gateway screen** (backup age, off-site age, disk).
+Each is shippable alone. Stop after 2 if that is enough.
 
-Each phase is shippable alone. Stop after phase 2 if it is enough.
+## 6. Acceptance tests
 
-## 7. Acceptance tests
+- No credential, a client key, a revoked `ops` credential: `401` on `/ops/*`.
+- The `ops` credential on `/v1/stations/X/readings/batches/next`: refused, and no batch is created (counted in the database).
+- A station silent beyond the threshold is red and first; a held tank shows its `held_reason`.
+- A reading with `clock_invalid` shows its flag; the readings table matches the database rows for a seeded tank.
+- The response bodies contain no upload secret, key or hash (seeded values searched for).
+- No route other than `GET`; the app role (`pts2_app`) is enough.
+- With 182 simulated stations the stations screen renders in under 500 ms on the build machine.
 
-- With no credential, with a client key, with a revoked `ops` credential: `401`.
-- With the `ops` credential on `/v1/stations/X/readings/batches/next`: refused; no batch is created.
-- A station with no upload for longer than the threshold is red and listed first; a held tank shows its reason.
-- The page and its HTML contain no secret, no key, and no raw payload unless the click was made.
-- The app role (`pts2_app`) is enough; no new database privileges.
-- Page renders with 182 stations (simulator) in under 500 ms on the build machine.
+## 7. Open questions
 
-## 8. Open questions
-
-1. Is a page needed once Telegram alerts work, or is `status` plus alerts enough? (Decide after one month of real alerts.)
-2. Are our own IP addresses stable enough to allow-list?
-3. Who besides the developer should see it (the client's support person)? If anyone outside, this is no longer internal and
-   section 1 applies.
-4. Keep raw upload retention at 90 days, or longer while the parser is new?
+1. Is the viewer wanted once the first month of real alerts is in, or is `status` plus alerts enough? (It is cheap to defer.)
+2. Are our addresses stable enough to allow-list?
+3. Who besides the developer sees it? If anyone outside, section 1 applies and the client conversation comes first.
+4. Time zones: show station local time first, or UTC first? (Default: local, with UTC beside it.)
